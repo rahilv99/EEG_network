@@ -1,24 +1,51 @@
-# EEG_network
-convolutional neural network to identify hand movement from MI-BCI signals (.edf)
+# EEG-Based Kinesthenic Imagination Classifier
+This project implements an EEGNet model to classify left and right kinesthenic imagination from EEG data.  The model is trained and evaluated using data from the Physionet EEG Motor Movement/Imagery Dataset.
 
-	Introduction
-The human brain is one of the most complex systems ever discovered. Despite centuries of scientific exploration, the mechanisms of many fundamental processes such as memory, imagination, and communication in the brain are largely ambiguous. Fortunately, the emerging technologies in machine learning pose great potential in decoding this natural mystery.
-	The following paper applies fundamental tools from BME271 to investigate EEG signals acquired from a Motor Imagery Brain-Computer Interface (MI-BCI). These signals contain patterns created by kinesthetic imagination (imagination of movement). Specifically, the beta and mu rhythms recorded in the EEG signals are temporarily interrupted by kinesthetic imagination. The way these rhythms rebound is unique to the type of kinesthetic imagination (e.g. left- or right-hand movement). While it is not easily observable in any domain (temporal, spatial or spectral), a convolutional neural network (CNN) can extract information from all 3 of these domains to approximate the rebound signature. At a high level, this extraction is done through convolutions between the signal array and various kernels. The CNN discussed in this paper is designed for any binary motor-imagery classification. The data used to train the model comes from a study in which patients imagined closing their right hand or left hand in response to a visual stimulus. 
-	A refined model of this nature has immense clinical applications, particularly in patients with limited mobility. Prosthetics have been evolving for centuries but have always been limited by their neural connections. Decoding neural signals in the motor cortex enables these connections, introducing a new class of prosthetics that can respond to a patient’s thoughts. These applications extend beyond patients with paralysis, from bionic attachments to improved entertainment. 
+## Features
+*   Downloads EEG data from Google Cloud Storage.
+*   Preprocesses EEG data including filtering and epoching.
+*   Applies Common Spatial Patterns (CSP) for feature extraction.
+*   Trains an EEGNet model for classification.
+*   Evaluates the model's performance using accuracy.
+*   Visualizes CSP patterns and example EEG frequency data.
 
-	Development
-The development of this signal processing system – herein referred to as EEGnet – required 3 major steps. The first step was preprocessing and visualization, allowing the model to access key components of the data acquired from the MI-BCI experiment. Next, the preprocessed data was fed into the convolutional neural network, which uses learned spatial, temporal, and spectral filters to extract information useful in detecting kinesthetic motor imagery. Finally, the model is evaluated on various metrics to determine its fitness to the data sets. You are encouraged to follow along with the Python notebook in the appendix.
-	Preprocessing
-Preprocessing of experimentally acquired data presents the data in its most ideal form for the model. Data stored in google cloud is first imported into RAM to make retrieval faster during training. Next, the desired file locations are stored in a dictionary to enable search by participant ID. Since every person’s brain has slightly different activity, the model should be trained using one participant’s data at a time. Thus, a function called extract_data was constructed to process all the data from a singular participant. 
-	Extract_data concatenates all EEG signals for a single participant and reads them into a data structure in Python. This array of channels is then standardized using the average of each channel while dropping any bad EEG channels. Additionally, a bandpass filter from 7 to 30 Hz is utilized to isolate the mu rhythm (8 to 12 Hz) and beta rhythm (15 to 30 Hz). Both rhythms are known to be suppressed during motor-imagery tasks, so changes in activity in this frequency range are important to kinesthetic imagination. Finally, epochs are extracted at events annotated into the data that indicate the onset of kinesthetic imagination.  The function returns data from around each event (x), the desired movement (left/right) (y), and information about the epochs that can be used to visualize the data. 
-	Now that the EEG data is fully processed into usable data, it must be optimized for EEGnet. CNNs are typically used for computer vision applications, which have 3 dimensions: height x width x channels (RGB). For EEG data, our dimensions are channels x time points. To be able to use a CNN, we must add an extra dimension by reshaping our data into channels x time points x 1. It is also beneficial to scale the data from the order of microvolts to volts. This is because machine learning models have a specified learning rate which expects the values to be centered at 0 with variance of 1 (z-score distribution). Scaling the data 6 orders of magnitude (microvolts to volts) roughly achieves this distribution. Finally, the data is split into training, validation, and test groups to be able to evaluate the model. The model will be trained on the training set, saved based on validation performance, and evaluated on the test set. 
- 
-	EEGnet Construction 
-The objective of EEGnet is to automate the identification of beta rhythm and mu rhythm rebound. This technique is commonly used in neuroscience to classify kinesthetic imagination, taking advantage of the unique signatures created in the 7 to 30 Hz range from various movements [2]. Specifically, the duration and shape of mu and beta rhythm suppression encode the intended movement. While this can be done visually, this task is particularly time-intensive and requires skilled labor. An CNN excels particularly in pattern recognition, making it an ideal option for automating this task. The CNN discussed in this paper is composed of 3 major components: feature detection, normalization/activation, and output. 
-	The data is first put into a 2D convolutional layer with a kernel size of 1 x 64. As seen in Figure 3, a kernel is simply a matrix of learned nodes that slides across the input data. The dot product of the kernel and an equal sized section of the original data (receptive field) results in a single entry of the feature map. This layer extracts temporal information because it combines 64 time points for a single channel (format of the input data is channels x time points x 1). This feature map is then normalized using a z-score distribution. This is commonly used in CNNs to prevent overfitting while preserving representational power. This layer is called “batch normalization” and ensures future layers retain stability, making learning faster.  The next layer uses a depth wise convolutional layer with a kernel size of 64 x 1, extracting spatial information because it is combining all channels for a given time point. Note that the data utilized by this layer is the output of the previous layer, meaning the feature map is patterns in the previously extracted spatial patterns over time.  This feature map – which now has both spatial and temporal patterns – is passed through an activation layer using an ReLU function. This makes any input less than 0 equal 0 and any positive input unchanged, creating non-linear decision boundaries by removing any weak learned features. Finally, the dimensionality of the data is reduced with average pooling. Dropout is also used to remove some nodes in the output layer, preventing overfitting and further reducing dimensionality.
-	The above architecture is considered one block of an CNN. Blocks can be put in series, increasing the complexity of the CNN. In the case of EEGnet, a second block is added that looks specifically at short (16 sample) time span patterns. Once processed through the second block the data is flattened into a 1D array of nodes, with each weight corresponding to the prevalence of a learned feature. These weights are used as variables in a sigmoid function, which outputs numbers close to 0 or 1 corresponding to left- or right-hand movement (Fig 5). 
-	It is also important to note that each convolutional layer uses multiple kernels. In EEGnet, the first block has a temporal layer with 4 kernels while the spatial layer has a depth multiplier of 2. This means for each of the 4 temporal feature maps, 2 temporal-spatial maps are created resulting in 8 maps. The second block creates 4 feature maps, so a total of 32 features are learned. 
+## Usage
+1.  **Authenticate with Google Cloud:**  The notebook requires authentication with your Google Cloud account.  Follow the instructions in the notebook to authenticate.  You'll need a Google Cloud project with appropriate permissions to access the data bucket.
+2.  **Install Dependencies:** Install the necessary Python packages using `pip install mne tensorflow`.
+3.  **Run the Notebook:** Execute the Jupyter Notebook (`EEG_network.ipynb`).  The notebook will download the data, preprocess it, train the model, and evaluate its performance.
+4.  **Unmount Data:** After finishing, unmount the data directory from Google Cloud Storage.
 
-	Evaluation
-Evaluation is necessary to understand the effectiveness of a model on unseen datasets. Bias and variance can indicate if a model is overfit to training data, meaning it is highly accurate for the data it is trained on but less accurate for unseen data. This happens when the model starts using noise unique to the training data to update the model parameters. These metrics are primarily achieved by the accuracy and loss from the 3 data sets acquired in preprocessing: train, validation, and test. In machine learning, the model updates its kernels based on feedback from the training data, minimizing the loss function and ideally increasing model accuracy. After each epoch, the partially trained model is also tested using the validation set, where the loss function and accuracy on the validation data set is evaluated. While this plays no role in updating the model architecture, the model with the lowest validation loss is saved in a temporary file. The model with the lowest validation loss will be retrieved at the end of training, ideally resulting in a model that is perfectly fit to all data. Without this implementation, the resulting model would likely be overfit to the training data. 
+## Installation
+1.  **Clone the Repository:** Clone this repository to your local machine using `git clone <repository_url>`.
+2.  **Install Dependencies:**  Install the required Python packages listed in the `Dependencies` section.
+3.  **Set up Google Cloud:** Ensure you have a Google Cloud project and have configured the necessary authentication credentials.
 
+## Technologies Used
+*   **Python:** The primary programming language.
+*   **TensorFlow/Keras:** Used for building and training the deep learning model (EEGNet).
+*   **MNE-Python:** A powerful Python library for processing EEG data.  Used for data loading, filtering, epoching, and CSP.
+*   **Scikit-learn:** Used for data splitting, cross-validation, and Linear Discriminant Analysis (LDA).
+*   **NumPy and Pandas:** For numerical computations and data manipulation.
+*   **Matplotlib:** For data visualization.
+*   **Google Cloud Storage (GCS):** Used for storing and accessing the EEG dataset.
+*   **gcsfuse:**  A tool to mount GCS buckets as local file systems.
+
+## Statistical Analysis
+The project uses a ShuffleSplit cross-validation strategy to reduce variance in the model's performance evaluation.  Linear Discriminant Analysis (LDA) is used as a classifier in conjunction with Common Spatial Patterns (CSP) for feature extraction.  Model performance is assessed using accuracy.
+
+## Configuration
+The model's hyperparameters (e.g., number of epochs, dropout rate, kernel length) can be adjusted within the Jupyter Notebook.
+
+## Dependencies
+*   `mne`
+*   `tensorflow`
+*   `numpy`
+*   `pandas`
+*   `scikit-learn`
+*   `matplotlib`
+*   `gcsfuse`
+
+## Contributing
+Contributions are welcome! Please open an issue or submit a pull request.
+
+*README.md was made with [Etchr](https://etchr.dev)*
